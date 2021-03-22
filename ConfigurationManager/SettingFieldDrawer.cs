@@ -31,9 +31,6 @@ namespace ConfigurationManager
             SettingDrawHandlers = new Dictionary<Type, Action<SettingEntryBase>>
             {
                 {typeof(bool), DrawBoolField},
-#pragma warning disable 618 // Disable obsolete warning
-                {typeof(BepInEx.KeyboardShortcut), DrawKeyboardShortcut},
-#pragma warning restore 618
                 {typeof(BepInEx.Configuration.KeyboardShortcut), DrawKeyboardShortcut},
                 {typeof(Color), DrawColor },
                 {typeof(Vector2), DrawVector2 },
@@ -61,7 +58,7 @@ namespace ConfigurationManager
                 if (setting.SettingType.GetCustomAttributes(typeof(FlagsAttribute), false).Any())
                     DrawFlagsField(setting, Enum.GetValues(setting.SettingType), _instance.RightColumnWidth);
                 else
-                    DrawComboboxField(setting, Enum.GetValues(setting.SettingType), _instance.SettingWindowRect.yMax);
+                    DrawComboboxField(setting, Enum.GetValues(setting.SettingType), _instance.DefaultWindowRect.yMax);
             }
             else
                 DrawFieldBasedOnValueType(setting);
@@ -140,7 +137,7 @@ namespace ConfigurationManager
             if (!setting.SettingType.IsInstanceOfType(acceptableValues.FirstOrDefault(x => x != null)))
                 throw new ArgumentException("AcceptableValueListAttribute returned a list with items of type other than the settng type itself.");
 
-            DrawComboboxField(setting, acceptableValues, _instance.SettingWindowRect.yMax);
+            DrawComboboxField(setting, acceptableValues, _instance.DefaultWindowRect.yMax);
         }
 
         private void DrawFieldBasedOnValueType(SettingEntryBase setting)
@@ -337,7 +334,6 @@ namespace ConfigurationManager
         {
 #pragma warning disable 618 // Disable obsolete warning
             var value = setting.Get();
-            var isOldType = value is BepInEx.KeyboardShortcut;
 
             if (_currentKeyboardShortcutToSet == setting)
             {
@@ -348,8 +344,7 @@ namespace ConfigurationManager
                 {
                     if (Input.GetKeyUp(key))
                     {
-                        if (isOldType) setting.Set(new BepInEx.KeyboardShortcut(key, _keysToCheck.Where(Input.GetKey).ToArray()));
-                        else setting.Set(new BepInEx.Configuration.KeyboardShortcut(key, _keysToCheck.Where(Input.GetKey).ToArray()));
+                        setting.Set(new BepInEx.Configuration.KeyboardShortcut(key, _keysToCheck.Where(Input.GetKey).ToArray()));
                         _currentKeyboardShortcutToSet = null;
                         break;
                     }
@@ -365,8 +360,7 @@ namespace ConfigurationManager
 
                 if (GUILayout.Button("Clear", GUILayout.ExpandWidth(false)))
                 {
-                    if (isOldType) setting.Set(new BepInEx.KeyboardShortcut());
-                    else setting.Set(BepInEx.Configuration.KeyboardShortcut.Empty);
+                    setting.Set(BepInEx.Configuration.KeyboardShortcut.Empty);
                     _currentKeyboardShortcutToSet = null;
                 }
             }

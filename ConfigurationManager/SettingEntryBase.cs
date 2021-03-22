@@ -145,41 +145,6 @@ namespace ConfigurationManager
                 {
                     case null: break;
 
-                    // Obsolete attributes from bepin4 -----------------------
-#pragma warning disable 618 // Disable obsolete warning
-                    case DisplayNameAttribute da:
-                        DispName = da.DisplayName;
-                        break;
-                    case CategoryAttribute ca:
-                        Category = ca.Category;
-                        break;
-                    case DescriptionAttribute de:
-                        Description = de.Description;
-                        break;
-                    case DefaultValueAttribute def:
-                        DefaultValue = def.Value;
-                        break;
-                    case ReadOnlyAttribute ro:
-                        ReadOnly = ro.IsReadOnly;
-                        break;
-                    case BrowsableAttribute bro:
-                        Browsable = bro.Browsable;
-                        break;
-                    case AdvancedAttribute adv:
-                        IsAdvanced = adv.IsAdvanced;
-                        break;
-                    case AcceptableValueListAttribute oldAcceptableValList:
-                        AcceptableValues = oldAcceptableValList.GetAcceptableValues(pluginInstance);
-                        break;
-                    case AcceptableValueRangeAttribute oldAcceptableValRange:
-                        AcceptableValueRange = new KeyValuePair<object, object>(oldAcceptableValRange.MinValue, oldAcceptableValRange.MaxValue);
-                        ShowRangeAsPercent = oldAcceptableValRange.ShowAsPercentage;
-                        break;
-                    case CustomSettingDrawAttribute oldCustomDraw:
-                        CustomDrawer = _ => oldCustomDraw.Run(PluginInstance);
-                        break;
-#pragma warning restore 618
-
                     // Obsolete attributes from early bepin5 -----------------------
                     case Action<SettingEntryBase> newCustomDraw:
                         CustomDrawer = _ => newCustomDraw(this);

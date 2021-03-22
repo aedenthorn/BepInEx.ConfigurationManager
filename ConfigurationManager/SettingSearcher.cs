@@ -50,8 +50,6 @@ namespace ConfigurationManager
 
                 detected.AddRange(GetPluginConfig(plugin).Cast<SettingEntryBase>());
 
-                detected.AddRange(LegacySettingSearcher.GetLegacyPluginConfig(plugin).Cast<SettingEntryBase>());
-
                 detected.RemoveAll(x => x.Browsable == false);
 
                 if (!detected.Any())
@@ -70,12 +68,6 @@ namespace ConfigurationManager
 
                 if (detected.Any())
                 {
-#pragma warning disable 618 // Disable obsolete warning
-                    var isAdvancedPlugin = type.GetCustomAttributes(typeof(AdvancedAttribute), false).Cast<AdvancedAttribute>().Any(x => x.IsAdvanced);
-#pragma warning restore 618
-                    if (isAdvancedPlugin)
-                        detected.ForEach(entry => entry.IsAdvanced = true);
-
                     results = results.Concat(detected);
                 }
             }
