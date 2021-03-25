@@ -47,6 +47,8 @@ namespace ConfigurationManager
 
         public void DrawSettingValue(SettingEntryBase setting)
         {
+            GUI.backgroundColor = ConfigurationManager._widgetBackground.Value;
+
             if (setting.CustomDrawer != null)
                 setting.CustomDrawer(setting is ConfigSettingEntry newSetting ? newSetting.Entry : null);
             else if (setting.ShowRangeAsPercent != null && setting.AcceptableValueRange.Key != null)
@@ -77,44 +79,21 @@ namespace ConfigurationManager
         {
             GUILayout.BeginHorizontal(options);
             GUILayout.FlexibleSpace();
-            GUILayout.Label(text);
+            GUILayout.Label(text, ConfigurationManager.labelStyle);
             GUILayout.FlexibleSpace();
             GUILayout.EndHorizontal();
         }
 
-        private static GUIStyle _categoryHeaderSkin;
         public static void DrawCategoryHeader(string text)
         {
-            if (_categoryHeaderSkin == null)
-            {
-                _categoryHeaderSkin = new GUIStyle(GUI.skin.label)
-                {
-                    alignment = TextAnchor.UpperCenter,
-                    wordWrap = true,
-                    stretchWidth = true,
-                    fontSize = 14
-                };
-            }
-
-            GUILayout.Label(text, _categoryHeaderSkin);
+            GUILayout.Label(text, ConfigurationManager.categoryHeaderSkin);
         }
 
-        private static GUIStyle _pluginHeaderSkin;
         public static bool DrawPluginHeader(GUIContent content, bool isCollapsed)
         {
-            if (_pluginHeaderSkin == null)
-            {
-                _pluginHeaderSkin = new GUIStyle(GUI.skin.label)
-                {
-                    alignment = TextAnchor.UpperCenter,
-                    wordWrap = true,
-                    stretchWidth = true,
-                    fontSize = 15
-                };
-            }
 
-            if (isCollapsed) content.text += "\n...";
-            return GUILayout.Button(content, _pluginHeaderSkin, GUILayout.ExpandWidth(true));
+            //if (isCollapsed) content.text += "\n...";
+            return GUILayout.Button(content, ConfigurationManager.pluginHeaderSkin, GUILayout.ExpandWidth(true));
         }
 
         public static bool DrawCurrentDropdown()
@@ -150,8 +129,9 @@ namespace ConfigurationManager
 
         private static void DrawBoolField(SettingEntryBase setting)
         {
+            GUI.backgroundColor = ConfigurationManager._widgetBackground.Value;
             var boolVal = (bool)setting.Get();
-            var result = GUILayout.Toggle(boolVal, boolVal ? "Enabled" : "Disabled", GUILayout.ExpandWidth(true));
+            var result = GUILayout.Toggle(boolVal, boolVal ? "Enabled" : "Disabled", ConfigurationManager.toggleStyle, GUILayout.ExpandWidth(true));
             if (result != boolVal)
                 setting.Set(result);
         }
@@ -183,7 +163,9 @@ namespace ConfigurationManager
                                     break;
 
                                 GUI.changed = false;
-                                var newVal = GUILayout.Toggle((currentValue & value.val) == value.val, value.name,
+
+
+                                var newVal = GUILayout.Toggle((currentValue & value.val) == value.val, value.name, ConfigurationManager.toggleStyle,
                                     GUILayout.ExpandWidth(false));
                                 if (GUI.changed)
                                 {
@@ -210,7 +192,7 @@ namespace ConfigurationManager
 
             if (!_comboBoxCache.TryGetValue(setting, out var box))
             {
-                box = new ComboBox(dispRect, buttonText, list.Cast<object>().Select(ObjectToGuiContent).ToArray(), GUI.skin.button, windowYmax);
+                box = new ComboBox(dispRect, buttonText, list.Cast<object>().Select(ObjectToGuiContent).ToArray(), ConfigurationManager.comboStyle, windowYmax);
                 _comboBoxCache[setting] = box;
             }
             else
@@ -247,7 +229,7 @@ namespace ConfigurationManager
             var leftValue = (float)Convert.ToDouble(setting.AcceptableValueRange.Key, CultureInfo.InvariantCulture);
             var rightValue = (float)Convert.ToDouble(setting.AcceptableValueRange.Value, CultureInfo.InvariantCulture);
 
-            var result = GUILayout.HorizontalSlider(converted, leftValue, rightValue, GUILayout.ExpandWidth(true));
+            var result = GUILayout.HorizontalSlider(converted, leftValue, rightValue, ConfigurationManager.sliderStyle, ConfigurationManager.thumbStyle, GUILayout.ExpandWidth(true));
             if (Math.Abs(result - converted) > Mathf.Abs(rightValue - leftValue) / 1000)
             {
                 var newValue = Convert.ChangeType(result, setting.SettingType, CultureInfo.InvariantCulture);
@@ -337,7 +319,7 @@ namespace ConfigurationManager
 
             if (_currentKeyboardShortcutToSet == setting)
             {
-                GUILayout.Label("Press any key combination", GUILayout.ExpandWidth(true));
+                GUILayout.Label("Press any key combination", ConfigurationManager.labelStyle, GUILayout.ExpandWidth(true));
                 GUIUtility.keyboardControl = -1;
 
                 foreach (var key in _keysToCheck)
@@ -350,7 +332,7 @@ namespace ConfigurationManager
                     }
                 }
 
-                if (GUILayout.Button("Cancel", GUILayout.ExpandWidth(false)))
+                if (GUILayout.Button("Cancel", ConfigurationManager.buttonStyle, GUILayout.ExpandWidth(false)))
                     _currentKeyboardShortcutToSet = null;
             }
             else
@@ -358,7 +340,7 @@ namespace ConfigurationManager
                 if (GUILayout.Button(value.ToString(), GUILayout.ExpandWidth(true)))
                     _currentKeyboardShortcutToSet = setting;
 
-                if (GUILayout.Button("Clear", GUILayout.ExpandWidth(false)))
+                if (GUILayout.Button("Clear", ConfigurationManager.buttonStyle, GUILayout.ExpandWidth(false)))
                 {
                     setting.Set(BepInEx.Configuration.KeyboardShortcut.Empty);
                     _currentKeyboardShortcutToSet = null;
@@ -410,7 +392,7 @@ namespace ConfigurationManager
 
         private static float DrawSingleVectorSlider(float setting, string label)
         {
-            GUILayout.Label(label, GUILayout.ExpandWidth(false));
+            GUILayout.Label(label, ConfigurationManager.labelStyle, GUILayout.ExpandWidth(false));
             float.TryParse(GUILayout.TextField(setting.ToString("F", CultureInfo.InvariantCulture), GUILayout.ExpandWidth(true)), NumberStyles.Any, CultureInfo.InvariantCulture, out var x);
             return x;
         }
@@ -426,13 +408,13 @@ namespace ConfigurationManager
                 _colorCache[obj] = cacheEntry;
             }
 
-            GUILayout.Label("R", GUILayout.ExpandWidth(false));
+            GUILayout.Label("R", ConfigurationManager.labelStyle, GUILayout.ExpandWidth(false));
             setting.r = GUILayout.HorizontalSlider(setting.r, 0f, 1f, GUILayout.ExpandWidth(true));
-            GUILayout.Label("G", GUILayout.ExpandWidth(false));
+            GUILayout.Label("G", ConfigurationManager.labelStyle, GUILayout.ExpandWidth(false));
             setting.g = GUILayout.HorizontalSlider(setting.g, 0f, 1f, GUILayout.ExpandWidth(true));
-            GUILayout.Label("B", GUILayout.ExpandWidth(false));
+            GUILayout.Label("B", ConfigurationManager.labelStyle, GUILayout.ExpandWidth(false));
             setting.b = GUILayout.HorizontalSlider(setting.b, 0f, 1f, GUILayout.ExpandWidth(true));
-            GUILayout.Label("A", GUILayout.ExpandWidth(false));
+            GUILayout.Label("A", ConfigurationManager.labelStyle, GUILayout.ExpandWidth(false));
             setting.a = GUILayout.HorizontalSlider(setting.a, 0f, 1f, GUILayout.ExpandWidth(true));
 
             GUILayout.Space(4);
@@ -444,7 +426,7 @@ namespace ConfigurationManager
                 cacheEntry.Last = setting;
             }
 
-            GUILayout.Label(cacheEntry.Tex, GUILayout.ExpandWidth(false));
+            GUILayout.Label(cacheEntry.Tex, ConfigurationManager.labelStyle, GUILayout.ExpandWidth(false));
         }
 
         private sealed class ColorCacheEntry
