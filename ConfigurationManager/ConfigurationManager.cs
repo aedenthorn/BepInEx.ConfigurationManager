@@ -1,4 +1,5 @@
 ﻿// Made by MarC0 / ManlyMarco
+// Modified by aedenthorn 2023
 // Copyright 2018 GNU General Public License v3.0
 
 using System;
@@ -20,18 +21,17 @@ namespace ConfigurationManager
     /// https://github.com/ManlyMarco/BepInEx.ConfigurationManager
     /// </summary>
     [BepInPlugin(GUID, "Configuration Manager", Version)]
-    [Browsable(false)]
     public class ConfigurationManager : BaseUnityPlugin
     {
         /// <summary>
         /// GUID of this plugin
         /// </summary>
-        public const string GUID = "com.bepis.bepinex.configurationmanager";
+        public const string GUID = "aedenthorn.configurationmanager";
 
         /// <summary>
         /// Version constant
         /// </summary>
-        public const string Version = "17.1";
+        public const string Version = "0.1.0";
 
         internal static new ManualLogSource Logger;
         private static SettingFieldDrawer _fieldDrawer;
@@ -59,12 +59,13 @@ namespace ConfigurationManager
         private string _modsWithoutSettings;
 
         private List<SettingEntryBase> _allSettings;
-        private List<PluginSettingsData> _filteredSetings = new List<PluginSettingsData>();
+        private List<PluginSettingsData> _filteredSettings = new List<PluginSettingsData>();
 
         internal Rect SettingWindowRect { get; private set; }
         private Rect _screenRect;
         private Vector2 _settingWindowScrollPos;
         private int _tipsHeight;
+        private Rect currentWindowRect;
 
         private PropertyInfo _curLockState;
         private PropertyInfo _curVisible;
@@ -73,22 +74,63 @@ namespace ConfigurationManager
 
         internal static Texture2D TooltipBg { get; private set; }
         internal static Texture2D WindowBackground { get; private set; }
+        internal static Texture2D EntryBackground { get; private set; }
+        internal static Texture2D WidgetBackground { get; private set; }
+
 
         internal int LeftColumnWidth { get; private set; }
         internal int RightColumnWidth { get; private set; }
 
-        private readonly ConfigEntry<bool> _showAdvanced;
-        private readonly ConfigEntry<bool> _showKeybinds;
-        private readonly ConfigEntry<bool> _showSettings;
-        private readonly ConfigEntry<KeyboardShortcut> _keybind;
-        private readonly ConfigEntry<bool> _hideSingleSection;
-        private readonly ConfigEntry<bool> _pluginConfigCollapsedDefault;
+        private static ConfigEntry<bool> _showAdvanced;
+        private static ConfigEntry<bool> _showKeybinds;
+        private static ConfigEntry<bool> _showSettings;
+        private static ConfigEntry<KeyboardShortcut> _keybind;
+        private static ConfigEntry<bool> _hideSingleSection;
+        private static ConfigEntry<bool> _pluginConfigCollapsedDefault;
         private bool _showDebug;
+
+        private static ConfigEntry<Vector2> _windowPosition;
+        private static ConfigEntry<Vector2> _windowSize;
+
+        private static ConfigEntry<string> _windowTitle;
+        private static ConfigEntry<string> _normalText;
+        private static ConfigEntry<string> _shortcutsText;
+        private static ConfigEntry<string> _advancedText;
+        private static ConfigEntry<string> _searchText;
+        private static ConfigEntry<string> _reloadText;
+        private static ConfigEntry<string> _resetText;
+        private static ConfigEntry<string> _resetSettingText;
+        private static ConfigEntry<string> _expandText;
+        private static ConfigEntry<string> _collapseText;
+        private static ConfigEntry<string> _tipText;
+        private static ConfigEntry<string> _clearText;
+        private static ConfigEntry<string> _openMenuText;
+
+        private static ConfigEntry<int> _textSize;
+        private static ConfigEntry<Color> _windowBackgroundColor;
+        private static ConfigEntry<Color> _entryBackgroundColor;
+        private static ConfigEntry<Color> _fontColor;
+        private static ConfigEntry<Color> _widgetBackgroundColor;
+
+        public static GUIStyle windowStyle;
+        public static GUIStyle headerStyle;
+        public static GUIStyle entryStyle;
+        public static GUIStyle labelStyle;
+        public static GUIStyle textStyle;
+        public static GUIStyle toggleStyle;
+        public static GUIStyle buttonStyle;
+        public static GUIStyle boxStyle;
+        public static GUIStyle sliderStyle;
+        public static GUIStyle thumbStyle;
+        public static GUIStyle categoryHeaderSkin;
+        public static GUIStyle pluginHeaderSkin;
+        public static int fontSize = 14;
 
         /// <inheritdoc />
         public ConfigurationManager()
         {
             Logger = base.Logger;
+            CalculateDefaultWindowRect();
             _fieldDrawer = new SettingFieldDrawer(this);
 
             _showAdvanced = Config.Bind("Filtering", "Show advanced", false);
@@ -99,6 +141,39 @@ namespace ConfigurationManager
                                       "The key can be overridden by a game-specific plugin if necessary, in that case this setting is ignored."));
             _hideSingleSection = Config.Bind("General", "Hide single sections", false, new ConfigDescription("Show section title for plugins with only one section"));
             _pluginConfigCollapsedDefault = Config.Bind("General", "Plugin collapsed default", true, new ConfigDescription("If set to true plugins will be collapsed when opening the configuration manager window"));
+
+            _windowTitle = Config.Bind("Text", "WindowTitle", "Configuration Manager", new ConfigDescription("Window title text"));
+            _normalText = Config.Bind("Text", "NormalText", "Normal", new ConfigDescription("Normal settings toggle text"));
+            _shortcutsText = Config.Bind("Text", "ShortcutsText", "Keybinds", new ConfigDescription("Shortcut key settings toggle text"));
+            _advancedText = Config.Bind("Text", "AdvancedText", "Advanced", new ConfigDescription("Advanced settings toggle text"));
+            _searchText = Config.Bind("Text", "SearchText", "Search Settings: ", new ConfigDescription("Search label text"));
+            _reloadText = Config.Bind("Text", "ReloadText", "Reload From File", new ConfigDescription("Reload mod config from file text"));
+            _resetText = Config.Bind("Text", "ResetText", "Reset To Default", new ConfigDescription("Reset mod config to default text"));
+            _resetSettingText = Config.Bind("Text", "ResetSettingText", "Reset", new ConfigDescription("Reset setting text"));
+            _expandText = Config.Bind("Text", "ExpandText", "Expand", new ConfigDescription("Expand button text"));
+            _collapseText = Config.Bind("Text", "CollapseText", "Collapse", new ConfigDescription("Collapse button text"));
+            _tipText = Config.Bind("Text", "TipText", "Tip: Click plugin names to expand. Hover over setting names to see their descriptions.", new ConfigDescription("Tip text"));
+            _clearText = Config.Bind("Text", "ClearText", "Clear", new ConfigDescription("Clear search text"));
+            _openMenuText = Config.Bind("Text", "OpenMenuText", "Open Config Menu", new ConfigDescription("Open Menu Button text"));
+
+            _pluginConfigCollapsedDefault = Config.Bind("General", "Plugin collapsed default", true, new ConfigDescription("If set to true plugins will be collapsed when opening the configuration manager window"));
+            _windowPosition = Config.Bind("General", "WindowPosition", new Vector2(55, 35), "Window position");
+            _windowSize = Config.Bind("General", "WindowSize", SettingWindowRect.size, "Window size");
+            _textSize = Config.Bind("General", "FontSize", 14, "Font Size");
+            _windowBackgroundColor = Config.Bind("Colors", "WindowBackgroundColor", new Color(0, 0, 0, 0.75f), "Window background color");
+            _entryBackgroundColor = Config.Bind("Colors", "EntryBackgroundColor", new Color(0.5f, 0.5f, 0.5f, 0.75f), "Entry background color");
+            _fontColor = Config.Bind("Colors", "FontColor", new Color(1, 1, 1, 1), "Font color");
+            _widgetBackgroundColor = Config.Bind("Colors", "WidgetColor", new Color(0, 0, 0, 0.75f), "Widget color");
+
+            _windowBackgroundColor.SettingChanged += Background_SettingChanged;
+            _entryBackgroundColor.SettingChanged += Background_SettingChanged;
+
+            currentWindowRect = new Rect(_windowPosition.Value, _windowSize.Value);
+
+        }
+        private void Background_SettingChanged(object sender, EventArgs e)
+        {
+            CreateBackgrounds();
         }
 
         /// <summary>
@@ -116,7 +191,7 @@ namespace ConfigurationManager
 
                 if (_displayingWindow)
                 {
-                    CalculateWindowRect();
+                    CalculateDefaultWindowRect();
 
                     BuildSettingList();
 
@@ -192,7 +267,7 @@ namespace ConfigurationManager
             var settingsAreCollapsed = _pluginConfigCollapsedDefault.Value;
 
             var nonDefaultCollpasingStateByPluginName = new HashSet<string>();
-            foreach (var pluginSetting in _filteredSetings)
+            foreach (var pluginSetting in _filteredSettings)
             {
                 if (pluginSetting.Collapsed != settingsAreCollapsed)
                 {
@@ -200,7 +275,7 @@ namespace ConfigurationManager
                 }
             }
 
-            _filteredSetings = results
+            _filteredSettings = results
                 .GroupBy(x => x.PluginInfo)
                 .Select(pluginSettings =>
                 {
@@ -242,7 +317,7 @@ namespace ConfigurationManager
             return searchStrings.All(s => combinedSearchTarget.IndexOf(s, StringComparison.InvariantCultureIgnoreCase) >= 0);
         }
 
-        private void CalculateWindowRect()
+        private void CalculateDefaultWindowRect()
         {
             var width = Mathf.Min(Screen.width, 650);
             var height = Screen.height < 560 ? Screen.height : Screen.height - 100;
@@ -260,19 +335,93 @@ namespace ConfigurationManager
         {
             if (DisplayingWindow)
             {
+                if (Event.current.type == EventType.KeyUp && Event.current.keyCode == _keybind.Value.MainKey)
+                {
+                    DisplayingWindow = false;
+                    return;
+                }
+                CreateStyles();
+
+                if (_textSize.Value > 9 && _textSize.Value < 100)
+                    fontSize = Mathf.Clamp(_textSize.Value, 10, 30);
+
                 SetUnlockCursor(0, true);
 
-                if (GUI.Button(_screenRect, string.Empty, GUI.skin.box) &&
-                    !SettingWindowRect.Contains(UnityInput.Current.mousePosition))
-                    DisplayingWindow = false;
+                GUI.Box(currentWindowRect, GUIContent.none, new GUIStyle());
+                GUI.backgroundColor = _windowBackgroundColor.Value;
 
-                GUI.Box(SettingWindowRect, GUIContent.none, new GUIStyle { normal = new GUIStyleState { background = WindowBackground } });
+                if (_windowSize.Value.x > 200 && _windowSize.Value.x < Screen.width && _windowSize.Value.y > 200 && _windowSize.Value.y < Screen.height)
+                    currentWindowRect.size = _windowSize.Value;
 
-                GUILayout.Window(WindowId, SettingWindowRect, SettingsWindow, "Plugin / mod settings");
+                RightColumnWidth = Mathf.RoundToInt(currentWindowRect.width / 2.5f * fontSize / 12f);
+                LeftColumnWidth = Mathf.RoundToInt(currentWindowRect.width - RightColumnWidth - 115);
+
+
+                currentWindowRect = GUILayout.Window(WindowId, currentWindowRect, SettingsWindow, _windowTitle.Value, windowStyle);
 
                 if (!SettingFieldDrawer.SettingKeyboardShortcut)
                     UnityInput.Current.ResetInputAxes();
+
+                if (!UnityInput.Current.GetKey(KeyCode.Mouse0) && (currentWindowRect.x != _windowPosition.Value.x || currentWindowRect.y != _windowPosition.Value.y))
+                {
+                    _windowPosition.Value = currentWindowRect.position;
+                    Config.Save();
+                }
             }
+        }
+        private void CreateBackgrounds()
+        {
+            var background = new Texture2D(1, 1, TextureFormat.ARGB32, false);
+            background.SetPixel(0, 0, _windowBackgroundColor.Value);
+            background.Apply();
+            WindowBackground = background;
+
+            var entryBackground = new Texture2D(1, 1, TextureFormat.ARGB32, false);
+            entryBackground.SetPixel(0, 0, _entryBackgroundColor.Value);
+            entryBackground.Apply();
+            EntryBackground = entryBackground;
+        }
+
+        private void CreateStyles()
+        {
+            windowStyle = new GUIStyle(GUI.skin.window);
+            windowStyle.normal.textColor = _fontColor.Value;
+            //windowStyle.fontSize = fontSize;
+            windowStyle.active.textColor = _fontColor.Value;
+
+            labelStyle = new GUIStyle(GUI.skin.label);
+            labelStyle.normal.textColor = _fontColor.Value;
+            labelStyle.fontSize = fontSize;
+
+            textStyle = new GUIStyle(GUI.skin.textArea);
+            textStyle.normal.textColor = _fontColor.Value;
+            textStyle.fontSize = fontSize;
+
+            buttonStyle = new GUIStyle(GUI.skin.button);
+            buttonStyle.normal.textColor = _fontColor.Value;
+            buttonStyle.fontSize = fontSize;
+
+            categoryHeaderSkin = new GUIStyle(labelStyle)
+            {
+                alignment = TextAnchor.UpperCenter,
+                wordWrap = true,
+                stretchWidth = true,
+            };
+            pluginHeaderSkin = new GUIStyle(categoryHeaderSkin);
+
+
+
+            toggleStyle = new GUIStyle(GUI.skin.toggle);
+            toggleStyle.normal.textColor = _fontColor.Value;
+            toggleStyle.fontSize = fontSize;
+
+            boxStyle = new GUIStyle(GUI.skin.box);
+            boxStyle.normal.textColor = _fontColor.Value;
+            boxStyle.fontSize = fontSize;
+
+            sliderStyle = new GUIStyle(GUI.skin.horizontalSlider);
+
+            thumbStyle = new GUIStyle(GUI.skin.horizontalSliderThumb);
         }
 
         private static void DrawTooltip(Rect area)
@@ -281,13 +430,13 @@ namespace ConfigurationManager
             {
                 var currentEvent = Event.current;
 
-                var style = new GUIStyle
+                var style = new GUIStyle(boxStyle)
                 {
-                    normal = new GUIStyleState { textColor = Color.white, background = TooltipBg },
                     wordWrap = true,
                     alignment = TextAnchor.MiddleCenter
                 };
-
+                var color = GUI.backgroundColor;
+                GUI.backgroundColor = _entryBackgroundColor.Value;
                 const int width = 400;
                 var height = style.CalcHeight(new GUIContent(GUI.tooltip), 400) + 10;
 
@@ -300,17 +449,20 @@ namespace ConfigurationManager
                     : currentEvent.mousePosition.y + 25;
 
                 GUI.Box(new Rect(x, y, width, height), GUI.tooltip, style);
+                GUI.backgroundColor = color;
             }
         }
 
         private void SettingsWindow(int id)
         {
+            GUI.DragWindow(new Rect(0, 0, currentWindowRect.width, 20));
+
             DrawWindowHeader();
 
             _settingWindowScrollPos = GUILayout.BeginScrollView(_settingWindowScrollPos, false, true);
 
             var scrollPosition = _settingWindowScrollPos.y;
-            var scrollHeight = SettingWindowRect.height;
+            var scrollHeight = currentWindowRect.height;
 
             GUILayout.BeginVertical();
             {
@@ -324,7 +476,7 @@ namespace ConfigurationManager
 
                 var currentHeight = _tipsHeight;
 
-                foreach (var plugin in _filteredSetings)
+                foreach (var plugin in _filteredSettings)
                 {
                     var visible = plugin.Height == 0 || currentHeight + plugin.Height >= scrollPosition && currentHeight <= scrollPosition + scrollHeight;
 
@@ -360,7 +512,7 @@ namespace ConfigurationManager
                 if (_showDebug)
                 {
                     GUILayout.Space(10);
-                    GUILayout.Label("Plugins with no options available: " + _modsWithoutSettings);
+                    GUILayout.Label("Plugins with no options available: " + _modsWithoutSettings, labelStyle);
                 }
                 else
                 {
@@ -372,7 +524,7 @@ namespace ConfigurationManager
             GUILayout.EndScrollView();
 
             if (!SettingFieldDrawer.DrawCurrentDropdown())
-                DrawTooltip(SettingWindowRect);
+                DrawTooltip(currentWindowRect);
         }
 
         private void DrawTips()
@@ -387,7 +539,7 @@ namespace ConfigurationManager
                 {
                     var newValue = !_pluginConfigCollapsedDefault.Value;
                     _pluginConfigCollapsedDefault.Value = newValue;
-                    foreach (var plugin in _filteredSetings)
+                    foreach (var plugin in _filteredSettings)
                         plugin.Collapsed = newValue;
                 }
             }
@@ -402,14 +554,14 @@ namespace ConfigurationManager
 
                 GUI.enabled = SearchString == string.Empty;
 
-                var newVal = GUILayout.Toggle(_showSettings.Value, "Normal settings");
+                var newVal = GUILayout.Toggle(_showSettings.Value, _normalText.Value, toggleStyle);
                 if (_showSettings.Value != newVal)
                 {
                     _showSettings.Value = newVal;
                     BuildFilteredSettingList();
                 }
 
-                newVal = GUILayout.Toggle(_showKeybinds.Value, "Keyboard shortcuts");
+                newVal = GUILayout.Toggle(_showKeybinds.Value, _shortcutsText.Value, toggleStyle);
                 if (_showKeybinds.Value != newVal)
                 {
                     _showKeybinds.Value = newVal;
@@ -418,7 +570,7 @@ namespace ConfigurationManager
 
                 var origColor = GUI.color;
                 GUI.color = _advancedSettingColor;
-                newVal = GUILayout.Toggle(_showAdvanced.Value, "Advanced settings");
+                newVal = GUILayout.Toggle(_showAdvanced.Value, _advancedText.Value, toggleStyle);
                 if (_showAdvanced.Value != newVal)
                 {
                     _showAdvanced.Value = newVal;
@@ -428,7 +580,7 @@ namespace ConfigurationManager
 
                 GUI.enabled = true;
 
-                newVal = GUILayout.Toggle(_showDebug, "Debug mode");
+                newVal = GUILayout.Toggle(_showDebug, "Debug mode", toggleStyle);
                 if (_showDebug != newVal)
                 {
                     _showDebug = newVal;
@@ -445,7 +597,7 @@ namespace ConfigurationManager
 
             GUILayout.BeginHorizontal(GUI.skin.box);
             {
-                GUILayout.Label("Search settings: ", GUILayout.ExpandWidth(false));
+                GUILayout.Label(_searchText.Value, labelStyle, GUILayout.ExpandWidth(false));
 
                 GUI.SetNextControlName(SearchBoxName);
                 SearchString = GUILayout.TextField(SearchString, GUILayout.ExpandWidth(true));
@@ -457,7 +609,7 @@ namespace ConfigurationManager
                     _focusSearchBox = false;
                 }
 
-                if (GUILayout.Button("Clear", GUILayout.ExpandWidth(false)))
+                if (GUILayout.Button(_clearText.Value, buttonStyle, GUILayout.ExpandWidth(false)))
                     SearchString = string.Empty;
             }
             GUILayout.EndHorizontal();
@@ -485,7 +637,13 @@ namespace ConfigurationManager
 
         private void DrawSinglePlugin(PluginSettingsData plugin)
         {
-            GUILayout.BeginVertical(GUI.skin.box);
+            var style = new GUIStyle(GUI.skin.box);
+            style.normal.textColor = _fontColor.Value;
+            style.normal.background = EntryBackground;
+            style.fontSize = fontSize;
+            GUI.backgroundColor = _entryBackgroundColor.Value;
+
+            GUILayout.BeginVertical(style);
 
             var categoryHeader = _showDebug ?
                 new GUIContent($"{plugin.Info.Name.TrimStart('!')} {plugin.Info.Version}", "GUID: " + plugin.Info.GUID) :
@@ -531,6 +689,35 @@ namespace ConfigurationManager
                         GUILayout.Space(2);
                     }
                 }
+                GUILayout.BeginHorizontal();
+                var color = GUI.backgroundColor;
+                GUI.backgroundColor = _widgetBackgroundColor.Value;
+                if (GUILayout.Button(_reloadText.Value, buttonStyle, GUILayout.ExpandWidth(true)))
+                {
+                    foreach (var category in plugin.Categories)
+                    {
+                        foreach (var setting in category.Settings)
+                        {
+                            setting.PluginInstance.Config.Reload();
+                            break;
+                        }
+                        break;
+                    }
+                    BuildFilteredSettingList();
+                }
+                if (GUILayout.Button(_resetText.Value, buttonStyle, GUILayout.ExpandWidth(true)))
+                {
+                    foreach (var category in plugin.Categories)
+                    {
+                        foreach (var setting in category.Settings)
+                        {
+                            setting.Set(setting.DefaultValue);
+                        }
+                    }
+                    BuildFilteredSettingList();
+                }
+                GUI.backgroundColor = color;
+                GUILayout.EndHorizontal();
             }
 
             GUILayout.EndVertical();
@@ -576,7 +763,7 @@ namespace ConfigurationManager
             bool DefaultButton()
             {
                 GUILayout.Space(5);
-                return GUILayout.Button("Reset", GUILayout.ExpandWidth(false));
+                return GUILayout.Button(_resetSettingText.Value, buttonStyle, GUILayout.ExpandWidth(false));
             }
 
             if (setting.DefaultValue != null)
@@ -593,15 +780,7 @@ namespace ConfigurationManager
 
         private void Start()
         {
-            var background = new Texture2D(1, 1, TextureFormat.ARGB32, false);
-            background.SetPixel(0, 0, Color.black);
-            background.Apply();
-            TooltipBg = background;
-
-            var windowBackground = new Texture2D(1, 1, TextureFormat.ARGB32, false);
-            windowBackground.SetPixel(0, 0, new Color(0.5f, 0.5f, 0.5f, 1));
-            windowBackground.Apply();
-            WindowBackground = windowBackground;
+            CreateBackgrounds();
 
             // Use reflection to keep compatibility with unity 4.x since it doesn't have Cursor
             var tCursor = typeof(Cursor);
@@ -628,7 +807,10 @@ namespace ConfigurationManager
 
             if (OverrideHotkey) return;
 
-            if (_keybind.Value.IsDown()) DisplayingWindow = !DisplayingWindow;
+            if (!DisplayingWindow && _keybind.Value.IsUp())
+            {
+                DisplayingWindow = true;
+            }
         }
 
         private void LateUpdate()
