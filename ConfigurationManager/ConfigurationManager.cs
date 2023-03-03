@@ -104,7 +104,6 @@ namespace ConfigurationManager
         private static ConfigEntry<string> _collapseText;
         private static ConfigEntry<string> _tipText;
         private static ConfigEntry<string> _clearText;
-        private static ConfigEntry<string> _openMenuText;
 
         private static ConfigEntry<int> _textSize;
         private static ConfigEntry<Color> _windowBackgroundColor;
@@ -154,7 +153,6 @@ namespace ConfigurationManager
             _collapseText = Config.Bind("Text", "CollapseText", "Collapse", new ConfigDescription("Collapse button text"));
             _tipText = Config.Bind("Text", "TipText", "Tip: Click plugin names to expand. Hover over setting names to see their descriptions.", new ConfigDescription("Tip text"));
             _clearText = Config.Bind("Text", "ClearText", "Clear", new ConfigDescription("Clear search text"));
-            _openMenuText = Config.Bind("Text", "OpenMenuText", "Open Config Menu", new ConfigDescription("Open Menu Button text"));
 
             _pluginConfigCollapsedDefault = Config.Bind("General", "Plugin collapsed default", true, new ConfigDescription("If set to true plugins will be collapsed when opening the configuration manager window"));
             _windowPosition = Config.Bind("General", "WindowPosition", new Vector2(55, 35), "Window position");
@@ -531,11 +529,11 @@ namespace ConfigurationManager
         {
             GUILayout.BeginHorizontal();
             {
-                GUILayout.Label("Tip: Click plugin names to expand. Click setting and group names to see their descriptions.");
+                GUILayout.Label(_tipText.Value, labelStyle);
 
                 GUILayout.FlexibleSpace();
 
-                if (GUILayout.Button(_pluginConfigCollapsedDefault.Value ? "Expand" : "Collapse", GUILayout.ExpandWidth(false)))
+                if (GUILayout.Button(_pluginConfigCollapsedDefault.Value ? _expandText.Value : _collapseText.Value, buttonStyle, GUILayout.ExpandWidth(false)))
                 {
                     var newValue = !_pluginConfigCollapsedDefault.Value;
                     _pluginConfigCollapsedDefault.Value = newValue;
